@@ -1,0 +1,183 @@
+---
+title: "Reproducable research - Assignment week 2"
+author: "YOU"
+date: "3/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo = FALSE}
+
+rm(list = ls())
+
+library(knitr)
+library(ggplot2)
+library(RColorBrewer)
+library(grid)
+library(dplyr)
+
+```
+
+
+## Data description
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day and include the number of steps taken in 5 minute intervals each day.
+
+
+The variables included in this dataset are:
+
+1. steps: Number of steps taking in a 5-minute interval
+
+2. date: The date on which the measurement was taken
+
+3. interval: Identifier for the 5-minute interval
+
+
+For this assignment I loaded the following R packages:
+
+- Knitr
+- ggplot2
+- RColorBrewer
+- grid
+- dplyr
+
+
+#### Loading the data
+
+```{r}
+  dataFile <- read.csv("activity.csv", header = TRUE)
+
+  dataFile$date <- as.Date(dataFile$date)
+```
+
+
+
+## Total steps by day
+
+
+Calculate the total number of steps taken per day and plot it as a histogram
+
+```{r, echo = FALSE}
+  totalSteps <- aggregate(dataFile$steps, by=list(dataFile$date), FUN = sum, na.rm = TRUE)
+  colnames(totalSteps) <- c("date", "stepsByDay")
+  
+  ggplot(totalSteps, aes(stepsByDay)) + 
+    geom_histogram(color="black", fill="white", bins = 12) + 
+    labs(title = "Total steps by day",
+       x = "Steps per Day", 
+       y = "Count")
+
+```
+
+
+Calculate and report the mean and median of the total number of steps taken by day
+
+Median: 
+```{r, echo = TRUE}
+  median(totalSteps$stepsByDay, na.rm = TRUE)
+```
+
+Mean: 
+```{r, echo = TRUE}
+  mean(totalSteps$stepsByDay, na.rm = TRUE)
+```
+
+
+
+## Average steps by interval 
+
+Make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+```{r, echo = TRUE}
+  averageStepsByInterval <- aggregate(dataFile$steps, by=list(dataFile$interval), FUN = mean, na.rm = TRUE)
+  colnames(averageStepsByInterval) <- c("interval", "AVGSteps")
+
+  ggplot(averageStepsByInterval, aes(interval, AVGSteps)) + 
+      geom_line(color = "blue", size = 1) + 
+      labs(title = "Average steps by 5-minute interval",
+          x = "Interval", 
+          y = "Average Steps")
+
+```
+
+
+5-minute interval that (on average across all days) contains the maximum number of steps: 
+```{r, echo = TRUE} 
+  averageStepsByInterval$interval[which.max(averageStepsByInterval$AVGSteps)]
+```
+
+
+## Missing Values
+
+
+Total number of missing values in the dataset:
+```{r, echo = TRUE}
+  sum(is.na(dataFile$steps))
+```
+
+
+Filling in missing values: 
+
+1. Calculate the average steps by day
+
+2. Impute the average steps by day to the fields with missing values
+
+```{r, echo = TRUE}
+  fieldsNA <- averageStepsByInterval$AVGSteps[match(dataFile$interval, averageStepsByInterval$interval)]
+  
+  dataFileWithoutNA <- transform(dataFile, steps = ifelse(is.na(dataFile$steps), yes = fieldsNA, no = dataFile$steps))
+```
+
+
+Make a histogram of the total number of steps taken each day (dataset without missing values)
+
+```{r, echo = TRUE}
+  totalStepsWithoutNA <- aggregate(list(dataFileWithoutNA$interval, dataFileWithoutNA$steps), by=list(dataFileWithoutNA$date), FUN = sum) 
+  colnames(totalStepsWithoutNA) <- c("date", "interval", "stepsByDay")
+
+  
+  ggplot(totalStepsWithoutNA, aes(stepsByDay)) + 
+     geom_histogram(color="black", fill="white", bins = 12) + 
+     labs(title = "Total steps by day",
+         x = "Steps per Day", 
+         y = "Count")
+```
+
+Calculate and report the mean and median of the total number of steps taken by day
+
+Median: 
+```{r, echo = TRUE}
+  median(totalStepsWithoutNA$stepsByDay, na.rm = TRUE)
+```
+
+Mean: 
+```{r, echo = TRUE}
+  mean(totalStepsWithoutNA$stepsByDay, na.rm = TRUE)
+```
+
+
+
+## Weekday vs. Weekend
+
+
+Make a panel plot containing a time series plot of the 5-minute interval and the average number of steps taken, averaged across all weekday or weekend days. 
+
+```{r, echo = TRUE}
+  dataFileWithoutNA$weekday <- weekdays(dataFile$date)
+  dataFileWithoutNA$dayType <- ifelse(dataFileWithoutNA$weekday=='Saturday' | dataFileWithoutNA$weekday=='Sunday', 'Weekend','Weekday')
+  
+  averageStepsByInterval2 <- aggregate(steps~interval + dayType, dataFileWithoutNA, FUN = mean, na.rm = TRUE)
+  colnames(averageStepsByInterval2) <- c("interval", "dayType", "AVGSteps")
+  
+  par(mfrow = c(2,1))
+  ggplot(averageStepsByInterval2, aes(interval, AVGSteps, color = dayType)) +
+      geom_line() +
+      labs(title = "Average steps by 5-minute interval", 
+           x = "Interval", 
+           y = "Average steps") + 
+    facet_wrap(~dayType, ncol = 1, nrow = 2 )
+
+``` 
